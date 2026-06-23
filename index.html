@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>生徒記録一覧</title>
+
+<style>
+body {
+  font-family: 
+    "UD デジタル 教科書体 NP-R",
+    "UD デジタル 教科書体 NP",
+    "BIZ UDPGothic",
+    "メイリオ",
+    sans-serif;
+  font-size: 12px;
+}
+
+button, input {
+  margin: 10px 5px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: auto;
+}
+
+th, td {
+  border: 1px solid black;
+  padding: 6px;
+  vertical-align: top;
+}
+
+th {
+  background-color: #eee;
+}
+
+/* 最小幅 */
+td:nth-child(1), th:nth-child(1),
+td:nth-child(2), th:nth-child(2),
+td:nth-child(3), th:nth-child(3),
+td:nth-child(4), th:nth-child(4),
+td:nth-child(5), th:nth-child(5),
+td:nth-child(6), th:nth-child(6) {
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* コメント */
+td:nth-child(7), th:nth-child(7) {
+  width: auto;
+  white-space: pre-wrap;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  button, input, label {
+    display: none;
+  }
+}
+
+tr, td {
+  page-break-inside: avoid;
+}
+</style>
+</head>
+
+<body>
+
+<h2>生徒記録一覧</h2>
+
+<input type="file" id="fileInput" accept=".csv">
+
+<label>
+  文字サイズ:
+  <input type="number" id="fontSize" value="12"> px
+</label>
+
+<button onclick="window.print()">印刷 / PDF保存</button>
+
+<table id="table"></table>
+
+<script>
+// フォントサイズ変更
+document.getElementById("fontSize").addEventListener("input", function() {
+  document.body.style.fontSize = this.value + "px";
+});
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+
+    let lines = e.target.result.split(/\r?\n/);
+
+    let rows = [];
+    let currentRow = [];
+
+    lines.forEach(line => {
+      let cols = line.split(",");
+
+      if (cols.length < 7) {
+        currentRow[6] += "\n" + line;
+      } else {
+        if (currentRow.length) rows.push(currentRow);
+        currentRow = cols;
+      }
+    });
+
+    if (currentRow.length) rows.push(currentRow);
+
+    const header = rows.shift();
+
+    // 日付の時間削除
+    rows.forEach(r => {
+      if (r[1]) r[1] = r[1].split(" ")[0];
+    });
+
+    // 番号を数値化（D列 → index3）
+    rows.forEach(r => {
+      r[3] = parseInt(r[3]);
+    });
+
+    // ★学級(C列) → 番号(D列)でソート
+    rows.sort((a, b) => {
+
+      const classA = a[2];
+      const classB = b[2];
+
+      if (classA < classB) return -1;
+      if (classA > classB) return 1;
+
+      return a[3] - b[3];
+    });
+
+    const table = document.getElementById('table');
+    table.innerHTML = "";
+
+    // ヘッダー
+    const trHead = document.createElement("tr");
+    header.forEach((h, i) => {
+      const th = document.createElement("th");
+      th.textContent = (i === 4) ? "氏名" : h;
+      trHead.appendChild(th);
+    });
+    table.appendChild(trHead);
+
+    let prevClass = null;
+
+    // データ表示
+    rows.forEach(row => {
+
+      const tr = document.createElement("tr");
+
+      const currentClass = row[2];
+
+      // 学級切替で改ページ
+      if (prevClass !== null && currentClass !== prevClass) {
+        tr.style.pageBreakBefore = "always";
+      }
+
+      prevClass = currentClass;
+
+      row.forEach((cell, i) => {
+        const td = document.createElement("td");
+        td.textContent = (i === 3) ? parseInt(cell) : cell;
+        tr.appendChild(td);
+      });
+
+      table.appendChild(tr);
+    });
+
+  };
+
+  reader.readAsText(file, "Shift-JIS");
+});
+</script>
+
+</body>
+</html>
